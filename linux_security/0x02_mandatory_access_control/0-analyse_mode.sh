@@ -1,3 +1,2 @@
 #!/bin/bash
-status=$(getenforce)
-echo "SELinux status: $status"
+echo "SELinux status: $(getenforce)"
