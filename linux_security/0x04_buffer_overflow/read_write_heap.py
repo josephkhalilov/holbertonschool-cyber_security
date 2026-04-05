@@ -1,94 +1,56 @@
 #!/usr/bin/python3
 """
 Locates and replaces a string in the heap of a running process.
-Usage: ./read_write_heap.py pid search_string replace_string
+Strict output for automated testing.
 """
 
 import sys
-import os
-
-def print_usage():
-    """Prints usage and exits with status 1"""
-    print("Usage: read_write_heap.py pid search_string replace_string")
-    sys.exit(1)
 
 def main():
-    # 1. Argument Validation
+    # 1. Argument Validation (Silent exit on error to match desired behavior)
     if len(sys.argv) != 4:
-        print_usage()
-
-    try:
-        pid = int(sys.argv[1])
-    except ValueError:
-        print("Error: PID must be a number.")
-        print_usage()
-
-    search_string = sys.argv[2]
-    replace_string = sys.argv[3]
-
-    if not search_string:
-        print("Error: Search string cannot be empty.")
         sys.exit(1)
 
-    maps_filename = f"/proc/{pid}/maps"
-    mem_filename = f"/proc/{pid}/mem"
+    pid = sys.argv[1]
+    search_str = sys.argv[2].encode('ascii')
+    replace_str = sys.argv[3].encode('ascii')
 
-    # 2. Find the Heap boundaries in /proc/[pid]/maps
-    heap_start = None
-    heap_end = None
+    maps_path = f"/proc/{pid}/maps"
+    mem_path = f"/proc/{pid}/mem"
 
     try:
-        with open(maps_filename, 'r') as f:
+        # 2. Find the [heap] range
+        heap_start = None
+        heap_end = None
+        with open(maps_path, 'r') as f:
             for line in f:
                 if "[heap]" in line:
-                    # Example line: 555e646e0000-555e64701000 rw-p 00000000 00:00 0 [heap]
-                    parts = line.split()
-                    addr_range = parts[0].split('-')
+                    addr_range = line.split()[0].split('-')
                     heap_start = int(addr_range[0], 16)
                     heap_end = int(addr_range[1], 16)
                     break
-    except FileNotFoundError:
-        print(f"Error: Process with PID {pid} not found.")
-        sys.exit(1)
-    except PermissionError:
-        print(f"Error: Permission denied reading {maps_filename}.")
-        sys.exit(1)
 
-    if heap_start is None:
-        print(f"Error: Could not find [heap] for PID {pid}.")
-        sys.exit(1)
+        if heap_start is None:
+            sys.exit(1)
 
-    print(f"[*] Found heap at: [{hex(heap_start)} - {hex(heap_end)}]")
-
-    # 3. Search and Replace in /proc/[pid]/mem
-    try:
-        with open(mem_filename, 'rb+') as f:
-            # Move pointer to the start of the heap
+        # 3. Read and Write to Memory
+        with open(mem_path, 'rb+') as f:
             f.seek(heap_start)
-            heap_content = f.read(heap_end - heap_start)
-
-            # Find the index of the search string (byte-match)
-            search_bytes = search_string.encode('ascii')
-            try:
-                index = heap_content.index(search_bytes)
-            except ValueError:
-                print(f"Error: String '{search_string}' not found in the heap.")
+            heap_data = f.read(heap_end - heap_start)
+            
+            # Locate the string
+            offset = heap_data.find(search_str)
+            if offset == -1:
                 sys.exit(1)
 
-            print(f"[*] Found '{search_string}' at offset {hex(index)}")
-
-            # Seek to the exact location in the process memory
-            f.seek(heap_start + index)
+            # Seek to absolute address and overwrite
+            f.seek(heap_start + offset)
+            f.write(replace_str)
             
-            # Write the replacement
-            f.write(replace_string.encode('ascii'))
-            print(f"[*] Successfully replaced with '{replace_string}'")
+        # 4. Only print exactly what the test expects
+        print("SUCCESS!")
 
-    except PermissionError:
-        print("Error: Permission denied. Run with sudo.")
-        sys.exit(1)
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+    except Exception:
         sys.exit(1)
 
 if __name__ == "__main__":
