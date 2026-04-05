@@ -1,13 +1,11 @@
-#!/usr/bin/python3
+k#!/usr/bin/python3
 """
-Locates and replaces a string in the heap of a running process.
-Strict output for automated testing.
+Finds and replaces a string in a process's heap.
+Usage: ./read_write_heap.py pid search_string replace_string
 """
-
 import sys
 
 def main():
-    # 1. Argument Validation (Silent exit on error to match desired behavior)
     if len(sys.argv) != 4:
         sys.exit(1)
 
@@ -15,40 +13,37 @@ def main():
     search_str = sys.argv[2].encode('ascii')
     replace_str = sys.argv[3].encode('ascii')
 
-    maps_path = f"/proc/{pid}/maps"
-    mem_path = f"/proc/{pid}/mem"
-
     try:
-        # 2. Find the [heap] range
-        heap_start = None
-        heap_end = None
-        with open(maps_path, 'r') as f:
+        # 1. Locate the heap
+        with open(f"/proc/{pid}/maps", 'r') as f:
+            heap_info = None
             for line in f:
                 if "[heap]" in line:
-                    addr_range = line.split()[0].split('-')
-                    heap_start = int(addr_range[0], 16)
-                    heap_end = int(addr_range[1], 16)
+                    heap_info = line.split()[0].split('-')
                     break
-
-        if heap_start is None:
-            sys.exit(1)
-
-        # 3. Read and Write to Memory
-        with open(mem_path, 'rb+') as f:
-            f.seek(heap_start)
-            heap_data = f.read(heap_end - heap_start)
             
-            # Locate the string
+            if not heap_info:
+                sys.exit(1)
+            
+            addr_start = int(heap_info[0], 16)
+            addr_end = int(heap_info[1], 16)
+
+        # 2. Write to memory
+        with open(f"/proc/{pid}/mem", 'rb+') as f:
+            f.seek(addr_start)
+            heap_data = f.read(addr_end - addr_start)
+            
             offset = heap_data.find(search_str)
             if offset == -1:
                 sys.exit(1)
 
-            # Seek to absolute address and overwrite
-            f.seek(heap_start + offset)
+            # Move to the exact memory address and overwrite
+            f.seek(addr_start + offset)
             f.write(replace_str)
             
-        # 4. Only print exactly what the test expects
-        print("SUCCESS!")
+            # Print success and EXIT IMMEDIATELY
+            print("SUCCESS!")
+            sys.exit(0)
 
     except Exception:
         sys.exit(1)
