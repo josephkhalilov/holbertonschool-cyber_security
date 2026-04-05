@@ -1,51 +1,76 @@
 k#!/usr/bin/python3
 """
-Finds and replaces a string in a process's heap.
+Locates and replaces a string in the heap of a running process.
 Usage: ./read_write_heap.py pid search_string replace_string
 """
+
 import sys
 
 def main():
+    # Argument validation
     if len(sys.argv) != 4:
+        print("Usage: read_write_heap.py pid search_string replace_string")
         sys.exit(1)
 
     pid = sys.argv[1]
-    search_str = sys.argv[2].encode('ascii')
-    replace_str = sys.argv[3].encode('ascii')
+    search_str = sys.argv[2]
+    replace_str = sys.argv[3]
+
+    # Convert strings to bytes for binary memory manipulation
+    search_bytes = search_str.encode('ascii')
+    replace_bytes = replace_str.encode('ascii')
 
     try:
-        # 1. Locate the heap
-        with open(f"/proc/{pid}/maps", 'r') as f:
-            heap_info = None
-            for line in f:
+        # 1. Parse /proc/[pid]/maps to find the heap
+        heap_start = None
+        heap_end = None
+        
+        with open(f"/proc/{pid}/maps", "r") as maps_file:
+            for line in maps_file:
                 if "[heap]" in line:
-                    heap_info = line.split()[0].split('-')
+                    # Format: 555e646e0000-555e64701000 rw-p ... [heap]
+                    addr_range = line.split()[0]
+                    start, end = addr_range.split('-')
+                    heap_start = int(start, 16)
+                    heap_end = int(end, 16)
                     break
-            
-            if not heap_info:
-                sys.exit(1)
-            
-            addr_start = int(heap_info[0], 16)
-            addr_end = int(heap_info[1], 16)
 
-        # 2. Write to memory
-        with open(f"/proc/{pid}/mem", 'rb+') as f:
-            f.seek(addr_start)
-            heap_data = f.read(addr_end - addr_start)
-            
-            offset = heap_data.find(search_str)
+        if heap_start is None:
+            print(f"[*] Error: Could not find heap for process {pid}")
+            sys.exit(1)
+
+        print(f"[*] Found heap at: [{hex(heap_start)} - {hex(heap_end)}]")
+
+        # 2. Open /proc/[pid]/mem and perform the replacement
+        # Note: Must be opened in binary mode (rb+)
+        with open(f"/proc/{pid}/mem", "rb+") as mem_file:
+            # Seek to the start of the heap
+            mem_file.seek(heap_start)
+            heap_data = mem_file.read(heap_end - heap_start)
+
+            # Find the string offset within the heap
+            offset = heap_data.find(search_bytes)
             if offset == -1:
+                print(f"[*] Error: '{search_str}' not found in heap")
                 sys.exit(1)
 
-            # Move to the exact memory address and overwrite
-            f.seek(addr_start + offset)
-            f.write(replace_str)
-            
-            # Print success and EXIT IMMEDIATELY
-            print("SUCCESS!")
-            sys.exit(0)
+            print(f"[*] Found '{search_str}' at offset {hex(offset)}")
 
-    except Exception:
+            # Seek to the exact location of the string in the process memory
+            mem_file.seek(heap_start + offset)
+            
+            # Overwrite with the new string
+            mem_file.write(replace_bytes)
+            print(f"[*] Successfully replaced with '{replace_str}'")
+
+    except PermissionError:
+        print("[!] Error: Permission denied. Run with sudo.")
+        sys.exit(1)
+    except FileNotFoundError:
+        print(f"[!] Error: Process {pid} or its memory map not found.")
+        sys.exit(1)
+    except Exception as e:
+        print(f"[!] An unexpected error occurred: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
