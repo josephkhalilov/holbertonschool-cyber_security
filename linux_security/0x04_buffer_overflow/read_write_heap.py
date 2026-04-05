@@ -36,13 +36,9 @@ def main():
                     break
 
         if heap_start is None:
-            print(f"[*] Error: Could not find heap for process {pid}")
             sys.exit(1)
 
-        print(f"[*] Found heap at: [{hex(heap_start)} - {hex(heap_end)}]")
-
         # 2. Open /proc/[pid]/mem and perform the replacement
-        # Note: Must be opened in binary mode (rb+)
         with open(f"/proc/{pid}/mem", "rb+") as mem_file:
             # Seek to the start of the heap
             mem_file.seek(heap_start)
@@ -51,26 +47,15 @@ def main():
             # Find the string offset within the heap
             offset = heap_data.find(search_bytes)
             if offset == -1:
-                print(f"[*] Error: '{search_str}' not found in heap")
                 sys.exit(1)
-
-            print(f"[*] Found '{search_str}' at offset {hex(offset)}")
 
             # Seek to the exact location of the string in the process memory
             mem_file.seek(heap_start + offset)
             
             # Overwrite with the new string
             mem_file.write(replace_bytes)
-            print(f"[*] Successfully replaced with '{replace_str}'")
-
-    except PermissionError:
-        print("[!] Error: Permission denied. Run with sudo.")
-        sys.exit(1)
-    except FileNotFoundError:
-        print(f"[!] Error: Process {pid} or its memory map not found.")
-        sys.exit(1)
-    except Exception as e:
-        print(f"[!] An unexpected error occurred: {e}")
+            
+    except Exception:
         sys.exit(1)
 
 if __name__ == "__main__":
