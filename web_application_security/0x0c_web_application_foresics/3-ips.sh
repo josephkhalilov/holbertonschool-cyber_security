@@ -1,5 +1,5 @@
 #!/bin/bash
-# Analysis script to extract unique successful login IPs
+# Script to identify the number of unique IP addresses with successful logins
 
 LOG_FILE="auth.log"
 
@@ -7,7 +7,8 @@ if [ ! -f "$LOG_FILE" ]; then
     exit 1
 fi
 
-# We use grep to find successful entries
-# Then use awk to find the word 'from' and print the word immediately following it
-# This is more robust than using a fixed column number ($11)
+# 1. Filter for successful logins
+# 2. Extract the string immediately following the word 'from'
+# 3. Sort and unique to get the distinct list
+# 4. Count the lines
 grep "Accepted" "$LOG_FILE" | awk '{ for(i=1;i<=NF;i++) if($i=="from") print $(i+1) }' | sort -u | wc -l
