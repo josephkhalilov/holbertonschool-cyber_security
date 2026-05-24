@@ -1,3 +1,4 @@
+require_relative '8-post'
 krequire 'net/http'
 require 'uri'
 require 'json'
