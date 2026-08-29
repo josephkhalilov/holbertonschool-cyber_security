@@ -1,77 +1,73 @@
-k#!/usr/bin/env ruby
+#!/usr/bin/env ruby
+
 require 'optparse'
 
-TASK_FILE = 'tasks.txt'
+TASKS_FILE = 'tasks.txt'
+
+def load_tasks
+  return [] unless File.exist?(TASKS_FILE)
+
+  File.readlines(TASKS_FILE).map(&:chomp)
+end
+
+def save_tasks(tasks)
+  File.write(TASKS_FILE, tasks.map { |task| "#{task}\n" }.join)
+end
+
+def add_task(task)
+  tasks = load_tasks
+  tasks << task
+  save_tasks(tasks)
+  puts "Task '#{task}' added."
+end
+
+def list_tasks
+  tasks = load_tasks
+  tasks.each_with_index do |task, index|
+    puts "#{index + 1}. #{task}"
+  end
+end
+
+def remove_task(index)
+  tasks = load_tasks
+  position = index - 1
+
+  if position >= 0 && position < tasks.length
+    removed = tasks.delete_at(position)
+    save_tasks(tasks)
+    puts "Task '#{removed}' removed."
+  else
+    puts 'Invalid task index.'
+  end
+end
+
 options = {}
 
-opt_parser = OptionParser.new do |opts|
-  # Explicitly structure the help string to guarantee character-for-character accuracy
-  opts.banner = "Usage: cli.rb [options]"
+OptionParser.new do |opts|
+  opts.banner = 'Usage: cli.rb [options]'
 
-  opts.on("-a", "--add TASK", "Add a new task") do |task|
+  opts.on('-a', '--add TASK', 'Add a new task') do |task|
     options[:add] = task
   end
 
-  opts.on("-l", "--list", "List all tasks") do
+  opts.on('-l', '--list', 'List all tasks') do
     options[:list] = true
   end
 
-  opts.on("-r", "--remove INDEX", "remove a task by index") do |index|
-    options[:remove] = index.to_i
+  opts.on('-r', '--remove INDEX', Integer, 'Remove a task by index') do |index|
+    options[:remove] = index
   end
 
-  opts.on("-h", "--help", "Show help") do
-    options[:help] = true
+  opts.on('-h', '--help', 'Show help') do
+    puts opts
+    exit
   end
-end
+end.parse!
 
-# Intercept and handle flags safely
-begin
-  opt_parser.parse!(ARGV)
-rescue OptionParser::ParseError
-  # Fallback if invalid options are specified
-end
-
-# If -h or --help is passed, print the exact requested block verbatim
-if options[:help] || ARGV.include?('-h') || ARGV.include?('--help')
-  puts "Usage: cli.rb [options]"
-  puts "    -a, --add TASK                   Add a new task"
-  puts "    -l, --list                       List all tasks"
-  puts "    -r, --remove INDEX               remove a task by index"
-  puts "    -h, --help                       Show help"
-  exit 0
-end
-
-# --- ACTIONS ---
-
-# 1. Add task action
 if options[:add]
-  task_name = options[:add]
-  File.open(TASK_FILE, 'a') do |file|
-    file.puts(task_name)
-  end
-  puts "Task '#{task_name}' added."
-
-# 2. List tasks action
+  add_task(options[:add])
 elsif options[:list]
-  if File.exist?(TASK_FILE)
-    lines = File.readlines(TASK_FILE).map(&:strip).reject(&:empty?)
-    lines.each_with_index do |task, idx|
-      puts "#{idx + 1}. #{task}"
-    end
-  end
-
-# 3. Remove task action
+  list_tasks
 elsif options[:remove]
-  target_idx = options[:remove]
-  if File.exist?(TASK_FILE)
-    lines = File.readlines(TASK_FILE)
-    if target_idx > 0 && target_idx <= lines.length
-      lines.delete_at(target_idx - 1)
-      File.open(TASK_FILE, 'w') do |file|
-        lines.each { |line| file.write(line) }
-      end
-    end
-  end
-  puts "Task 'tasks' removed."
+  remove_task(options[:remove])
 end
