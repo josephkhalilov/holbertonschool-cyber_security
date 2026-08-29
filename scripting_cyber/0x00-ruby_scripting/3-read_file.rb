@@ -1,26 +1,29 @@
 require 'json'
 
-def count_user_ids(path)
-  # Read and parse the JSON file
-  file_content = File.read(path)
-  data = JSON.parse(file_content)
+# Reads and parses a JSON file into a Ruby array/hash.
+# Returns an empty array if the file is missing or invalid.
+def read_json_file(file_path)
+  JSON.parse(File.read(file_path))
+rescue Errno::ENOENT
+  puts "Error: File not found - #{file_path}"
+  []
+rescue JSON::ParserError
+  puts "Error: Invalid JSON format in #{file_path}"
+  []
+end
 
-  # Create a hash with a default value of 0 to count user IDs
-  id_counts = Hash.new(0)
+# Reads a JSON file of objects containing a "userId" field and
+# prints how many entries exist per userId, sorted by userId.
+def count_user_ids(file_path)
+  data = read_json_file(file_path)
+  counts = Hash.new(0)
 
-  # Iterate through the array and increment the count for each userId
-  data.each do |item|
-    if item['userId']
-      id_counts[item['userId']] += 1
-    end
+  data.each do |entry|
+    user_id = entry['userId']
+    counts[user_id] += 1 if user_id
   end
 
-  # Print the results in the requested format (userId: count)
-  id_counts.each do |user_id, count|
+  counts.sort.each do |user_id, count|
     puts "#{user_id}: #{count}"
   end
-rescue Errno::ENOENT
-  puts "Error: File not found at #{path}"
-rescue JSON::ParserError
-  puts "Error: Failed to parse JSON file."
 end

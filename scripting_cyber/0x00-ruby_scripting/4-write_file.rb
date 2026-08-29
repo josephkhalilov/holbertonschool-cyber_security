@@ -1,29 +1,18 @@
+require_relative '3-read_file'
 require 'json'
 
+# Writes Ruby data back out to disk as pretty-printed JSON.
+def write_json_file(file_path, data)
+  File.write(file_path, JSON.pretty_generate(data))
+end
+
+# Merges the JSON array found in file1_path into the JSON array found
+# in file2_path, then writes the combined array back to file2_path.
 def merge_json_files(file1_path, file2_path)
-  # 1. Read and parse the first JSON file
-  file1_content = File.read(file1_path)
-  data1 = JSON.parse(file1_content)
+  new_entries = read_json_file(file1_path)
+  existing_entries = read_json_file(file2_path)
 
-  # 2. Read and parse the second JSON file
-  file2_content = File.read(file2_path)
-  data2 = JSON.parse(file2_content)
+  merged_entries = existing_entries + new_entries
 
-  # Ensure both files contain arrays before merging
-  if data1.is_a?(Array) && data2.is_a?(Array)
-    # 3. Merge data1 into data2
-    merged_data = data2 + data1
-  else
-    # Fallback if the files contain single JSON objects instead of arrays
-    merged_data = [data2, data1].flatten
-  end
-
-  # 4. Write the pretty-printed merged data back to file2_path
-  File.open(file2_path, 'w') do |f|
-    f.write(JSON.pretty_generate(merged_data))
-  end
-rescue Errno::ENOENT => e
-  puts "Error: File not found - #{e.message}"
-rescue JSON::ParserError
-  puts "Error: Failed to parse one of the JSON files."
+  write_json_file(file2_path, merged_entries)
 end
