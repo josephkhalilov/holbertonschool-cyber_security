@@ -12,13 +12,13 @@ def post_request(url, body_params)
 
   response = http.request(request)
 
-  puts "Response status: #{response.code} #{response.message}"
+  puts "Response status: #{response.code} #{response.message.to_s.strip}"
   puts 'Response body:'
 
   begin
     parsed_body = JSON.parse(response.body)
     puts JSON.pretty_generate(parsed_body)
-  rescue JSON::ParserError
+  rescue JSON::ParserError, TypeError
     puts response.body
   end
 end
