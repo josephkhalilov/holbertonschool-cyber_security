@@ -20,6 +20,7 @@ OptionParser.new do |opts|
   end
 
   opts.on('-l', '--list', 'List all tasks') do
+    puts 'Tasks:'
     load_tasks.each_with_index { |task, i| puts "#{i + 1}. #{task}" }
   end
 
